@@ -5,6 +5,34 @@ import { TasteProfile, Category } from "@/lib/types";
 import { saveProfile, setOnboarded } from "@/lib/storage";
 import { useRouter } from "next/navigation";
 
+// Compress an image to max 800px on longest side, JPEG quality 0.7
+function compressImage(dataUrl: string, maxSize = 800): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      let { width, height } = img;
+
+      if (width > height && width > maxSize) {
+        height = (height * maxSize) / width;
+        width = maxSize;
+      } else if (height > maxSize) {
+        width = (width * maxSize) / height;
+        height = maxSize;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { resolve(dataUrl); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", 0.7));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 interface DrinkImage {
   id: string;
   dataUrl: string;
@@ -127,30 +155,38 @@ export default function OnboardingFlow() {
   }
 
   const handleImageUpload = useCallback(
-    (cat: Category, e: React.ChangeEvent<HTMLInputElement>) => {
+    async (cat: Category, e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
       if (!files) return;
 
-      Array.from(files).forEach((file) => {
+      for (const file of Array.from(files)) {
         const reader = new FileReader();
-        reader.onload = () => {
-          if (typeof reader.result !== "string") return;
-          const dataUrl = reader.result;
-          const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+        const rawDataUrl = await new Promise<string>((resolve) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        });
 
-          setInputs((prev) => ({
-            ...prev,
-            [cat]: {
-              ...prev[cat],
-              images: [
-                ...prev[cat].images,
-                { id, dataUrl, thumbnail: dataUrl },
-              ],
-            },
-          }));
-        };
-        reader.readAsDataURL(file);
-      });
+        // Compress for API (800px) and thumbnail (200px)
+        const [compressed, thumb] = await Promise.all([
+          compressImage(rawDataUrl, 800),
+          compressImage(rawDataUrl, 200),
+        ]);
+
+        const id =
+          Date.now().toString(36) +
+          Math.random().toString(36).slice(2, 5);
+
+        setInputs((prev) => ({
+          ...prev,
+          [cat]: {
+            ...prev[cat],
+            images: [
+              ...prev[cat].images,
+              { id, dataUrl: compressed, thumbnail: thumb },
+            ],
+          },
+        }));
+      }
 
       // Reset the input so the same file can be re-selected
       e.target.value = "";
@@ -220,7 +256,10 @@ export default function OnboardingFlow() {
         }),
       });
 
-      if (!res.ok) throw new Error("Failed to analyze profile");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.error || "Failed to analyze profile");
+      }
       const data = await res.json();
 
       const categories: TasteProfile["categories"] = {};
@@ -264,8 +303,10 @@ export default function OnboardingFlow() {
       saveProfile(profile);
       setOnboarded();
       router.push("/");
-    } catch {
-      setError("Something went wrong. Please try again.");
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Something went wrong. Please try again."
+      );
       setStep("details");
     }
   }

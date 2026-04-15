@@ -52,12 +52,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Add the text description
-    let userText = `Here is my taste description: "${description}"`;
+    const hasDescription = description && description.trim().length > 0;
+    let userText = "";
+
+    if (hasDescription) {
+      userText = `Here is my taste description: "${description}"`;
+    }
     if (anchors?.length > 0) {
       userText += `\n\nSpecific wines/beers/cocktails I've enjoyed: ${anchors.join(", ")}`;
     }
     if (hasImages) {
-      userText += `\n\nI've also uploaded ${images.length} photo(s) of drinks I enjoy. Please identify each drink from the photos and include them in your analysis.`;
+      userText += `${userText ? "\n\n" : ""}I've uploaded ${images.length} photo(s) of drinks I enjoy. Please identify each drink from the photos and build my taste profile based on what you see.`;
+    }
+    if (!userText.trim()) {
+      userText = "Please analyze the uploaded photos to build my taste profile.";
     }
     content.push({ type: "text", text: userText });
 
