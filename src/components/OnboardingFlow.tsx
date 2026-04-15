@@ -348,7 +348,20 @@ export default function OnboardingFlow({ existingProfile }: OnboardingFlowProps)
   }
 
   return (
-    <div className="w-full max-w-lg mx-auto px-4 py-8 space-y-8">
+    <div className="w-full max-w-lg mx-auto px-4 py-8 space-y-8 relative">
+      {/* Cancel button when editing */}
+      {isEditing && (
+        <button
+          onClick={() => router.push("/palate")}
+          className="absolute top-8 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors"
+          aria-label="Cancel editing"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
+
       <div className="text-center space-y-2">
         <h1 className="text-3xl font-bold text-white">PourDecision</h1>
         <p className="text-zinc-400">

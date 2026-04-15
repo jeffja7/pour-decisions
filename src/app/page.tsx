@@ -14,6 +14,37 @@ import {
 } from "@/lib/storage";
 import { RecommendationResponse } from "@/lib/types";
 
+const LOADING_MESSAGES = [
+  { text: "Reading the menu...", sub: "Identifying all the options" },
+  { text: "Checking your palate...", sub: "Matching to your preferences" },
+  { text: "Finding your perfect pour...", sub: "Almost there" },
+];
+
+function LoadingAnimation() {
+  const [messageIndex, setMessageIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setMessageIndex((prev) =>
+        prev < LOADING_MESSAGES.length - 1 ? prev + 1 : prev
+      );
+    }, 2500);
+    return () => clearInterval(timer);
+  }, []);
+
+  const msg = LOADING_MESSAGES[messageIndex];
+
+  return (
+    <div className="flex flex-col items-center justify-center gap-4 py-20 animate-fade-in">
+      <div className="w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+      <div className="text-center" key={messageIndex}>
+        <p className="text-zinc-300 font-medium animate-fade-in">{msg.text}</p>
+        <p className="text-zinc-500 text-sm mt-1 animate-fade-in">{msg.sub}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function ScanPage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
@@ -119,17 +150,7 @@ export default function ScanPage() {
           </>
         )}
 
-        {loading && (
-          <div className="flex flex-col items-center justify-center gap-4 py-20">
-            <div className="w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
-            <div className="text-center">
-              <p className="text-zinc-300 font-medium">Analyzing menu...</p>
-              <p className="text-zinc-500 text-sm mt-1">
-                Finding your perfect pour
-              </p>
-            </div>
-          </div>
-        )}
+        {loading && <LoadingAnimation />}
 
         {error && (
           <div className="text-center py-12 space-y-4">

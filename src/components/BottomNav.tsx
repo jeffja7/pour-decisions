@@ -61,8 +61,11 @@ export default function BottomNav() {
             <Link
               key={tab.href}
               href={tab.href}
-              className="flex flex-col items-center gap-1 px-6 py-2"
+              className="flex flex-col items-center gap-1 px-8 py-3 relative active:scale-95 transition-transform"
             >
+              {active && (
+                <span className="absolute top-0 w-6 h-0.5 rounded-full bg-violet-500" />
+              )}
               {tab.icon(active)}
               <span
                 className={`text-xs ${active ? "text-violet-500 font-medium" : "text-zinc-500"}`}

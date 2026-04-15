@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { RecommendationResponse } from "@/lib/types";
 
 interface RecommendationCardsProps {
@@ -24,15 +25,82 @@ function ConfidenceDots({ confidence }: { confidence: number }) {
   );
 }
 
+function FeedbackButtons({
+  item,
+  upLabel,
+  downLabel,
+  onFeedback,
+  ratedItems,
+  onRate,
+}: {
+  item: string;
+  upLabel: string;
+  downLabel: string;
+  onFeedback: (item: string, rating: "up" | "down") => void;
+  ratedItems: Map<string, "up" | "down">;
+  onRate: (item: string, rating: "up" | "down") => void;
+}) {
+  const rating = ratedItems.get(item);
+
+  if (rating) {
+    return (
+      <div className="flex items-center gap-2 pt-1">
+        <span
+          className={`text-xs px-3 py-1.5 rounded-lg ${
+            rating === "up"
+              ? "bg-emerald-900/50 text-emerald-400"
+              : "bg-rose-900/50 text-rose-400"
+          }`}
+        >
+          {rating === "up" ? "Noted!" : "Got it"}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex gap-2 pt-1">
+      <button
+        onClick={() => {
+          onRate(item, "up");
+          onFeedback(item, "up");
+        }}
+        className="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-emerald-900/50 hover:text-emerald-400 text-zinc-400 transition-colors active:scale-95"
+      >
+        {upLabel}
+      </button>
+      <button
+        onClick={() => {
+          onRate(item, "down");
+          onFeedback(item, "down");
+        }}
+        className="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-rose-900/50 hover:text-rose-400 text-zinc-400 transition-colors active:scale-95"
+      >
+        {downLabel}
+      </button>
+    </div>
+  );
+}
+
 export default function RecommendationCards({
   data,
   onFeedback,
   onDismiss,
 }: RecommendationCardsProps) {
+  const [ratedItems, setRatedItems] = useState<Map<string, "up" | "down">>(
+    new Map()
+  );
+
+  function handleRate(item: string, rating: "up" | "down") {
+    setRatedItems((prev) => new Map(prev).set(item, rating));
+  }
+
   return (
     <div className="w-full max-w-lg mx-auto space-y-6 pb-24">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div
+        className="flex items-center justify-between animate-fade-in"
+      >
         <h2 className="text-lg font-semibold text-white">
           Your Recommendations
         </h2>
@@ -44,17 +112,23 @@ export default function RecommendationCards({
         </button>
       </div>
 
-      <p className="text-zinc-500 text-sm">
+      <p className="text-zinc-500 text-sm animate-fade-in">
         Found {data.menuItems.length} items on the menu
       </p>
 
       {/* Top Picks */}
       <div className="space-y-3">
-        <h3 className="text-violet-400 font-medium text-sm">Top Picks</h3>
+        <h3
+          className="text-violet-400 font-medium text-sm animate-fade-in-up"
+          style={{ animationDelay: "100ms" }}
+        >
+          Top Picks
+        </h3>
         {data.topPicks.map((rec, i) => (
           <div
             key={i}
-            className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-2"
+            className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-2 animate-fade-in-up"
+            style={{ animationDelay: `${150 + i * 100}ms` }}
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1">
@@ -70,27 +144,24 @@ export default function RecommendationCards({
             <p className="text-zinc-400 text-sm leading-relaxed">
               {rec.reason}
             </p>
-            <div className="flex gap-2 pt-1">
-              <button
-                onClick={() => onFeedback(rec.item, "up")}
-                className="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-emerald-900/50 hover:text-emerald-400 text-zinc-400 transition-colors"
-              >
-                Ordered this
-              </button>
-              <button
-                onClick={() => onFeedback(rec.item, "down")}
-                className="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-rose-900/50 hover:text-rose-400 text-zinc-400 transition-colors"
-              >
-                Not for me
-              </button>
-            </div>
+            <FeedbackButtons
+              item={rec.item}
+              upLabel="Ordered this"
+              downLabel="Not for me"
+              onFeedback={onFeedback}
+              ratedItems={ratedItems}
+              onRate={handleRate}
+            />
           </div>
         ))}
       </div>
 
       {/* Adventure Pick */}
       <div className="space-y-3">
-        <h3 className="text-amber-400 font-medium text-sm flex items-center gap-2">
+        <h3
+          className="text-amber-400 font-medium text-sm flex items-center gap-2 animate-fade-in-up"
+          style={{ animationDelay: "450ms" }}
+        >
           <svg
             className="w-4 h-4"
             fill="none"
@@ -106,27 +177,24 @@ export default function RecommendationCards({
           </svg>
           Adventure Pick
         </h3>
-        <div className="bg-gradient-to-br from-amber-950/30 to-violet-950/30 border border-amber-800/30 rounded-xl p-4 space-y-2">
+        <div
+          className="bg-gradient-to-br from-amber-950/30 to-violet-950/30 border border-amber-800/30 rounded-xl p-4 space-y-2 animate-fade-in-up"
+          style={{ animationDelay: "500ms" }}
+        >
           <span className="text-white font-medium">
             {data.adventurePick.item}
           </span>
           <p className="text-zinc-400 text-sm leading-relaxed">
             {data.adventurePick.reason}
           </p>
-          <div className="flex gap-2 pt-1">
-            <button
-              onClick={() => onFeedback(data.adventurePick.item, "up")}
-              className="text-xs px-3 py-1.5 rounded-lg bg-zinc-800/50 hover:bg-emerald-900/50 hover:text-emerald-400 text-zinc-400 transition-colors"
-            >
-              Tried it, loved it
-            </button>
-            <button
-              onClick={() => onFeedback(data.adventurePick.item, "down")}
-              className="text-xs px-3 py-1.5 rounded-lg bg-zinc-800/50 hover:bg-rose-900/50 hover:text-rose-400 text-zinc-400 transition-colors"
-            >
-              Not my thing
-            </button>
-          </div>
+          <FeedbackButtons
+            item={data.adventurePick.item}
+            upLabel="Tried it, loved it"
+            downLabel="Not my thing"
+            onFeedback={onFeedback}
+            ratedItems={ratedItems}
+            onRate={handleRate}
+          />
         </div>
       </div>
     </div>
