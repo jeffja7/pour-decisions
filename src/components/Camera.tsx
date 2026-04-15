@@ -79,11 +79,14 @@ export default function Camera({ onCapture }: CameraProps) {
 
       {streaming ? (
         <div className="relative w-full max-w-lg aspect-[3/4] rounded-2xl overflow-hidden bg-black">
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
           <video
             ref={videoRef}
             autoPlay
             playsInline
+            muted
             className="w-full h-full object-cover"
+            style={{ WebkitTransform: "translateZ(0)" }}
           />
           <div className="absolute bottom-4 left-0 right-0 flex justify-center">
             <button
@@ -137,7 +140,6 @@ export default function Camera({ onCapture }: CameraProps) {
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            capture="environment"
             onChange={handleFileUpload}
             className="hidden"
           />
