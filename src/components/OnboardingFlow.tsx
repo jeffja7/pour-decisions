@@ -1,19 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { TasteProfile, Category } from "@/lib/types";
 import { saveProfile, setOnboarded } from "@/lib/storage";
 import { useRouter } from "next/navigation";
+
+interface DrinkImage {
+  id: string;
+  dataUrl: string;
+  thumbnail: string;
+}
 
 interface CategoryInput {
   enabled: boolean;
   description: string;
   anchors: string;
+  images: DrinkImage[];
 }
 
 const CATEGORY_CONFIG: Record<
   Category,
-  { label: string; color: string; icon: string; placeholder: string; anchorsPlaceholder: string }
+  {
+    label: string;
+    color: string;
+    icon: string;
+    placeholder: string;
+    anchorsPlaceholder: string;
+    photoHint: string;
+  }
 > = {
   wine: {
     label: "Wine",
@@ -21,7 +35,9 @@ const CATEGORY_CONFIG: Record<
     icon: "🍷",
     placeholder:
       "e.g., I love big bold reds — Malbecs and Cab Sauvs. For whites, I like buttery Chardonnays but not super sweet Rieslings.",
-    anchorsPlaceholder: "e.g., Catena Zapata Malbec, Caymus Cab, Cakebread Chardonnay",
+    anchorsPlaceholder:
+      "e.g., Catena Zapata Malbec, Caymus Cab, Cakebread Chardonnay",
+    photoHint: "Snap a bottle or label",
   },
   beer: {
     label: "Beer",
@@ -29,7 +45,9 @@ const CATEGORY_CONFIG: Record<
     icon: "🍺",
     placeholder:
       "e.g., I'm into hazy IPAs and Belgian whites. Not a fan of super bitter or heavy stouts.",
-    anchorsPlaceholder: "e.g., Tree House Julius, Allagash White, Sierra Nevada Pale Ale",
+    anchorsPlaceholder:
+      "e.g., Tree House Julius, Allagash White, Sierra Nevada Pale Ale",
+    photoHint: "Snap a can, bottle, or tap",
   },
   cocktails: {
     label: "Cocktails",
@@ -38,10 +56,35 @@ const CATEGORY_CONFIG: Record<
     placeholder:
       "e.g., I love spirit-forward drinks like Old Fashioneds and Negronis. I also enjoy a good mezcal cocktail.",
     anchorsPlaceholder: "e.g., Old Fashioned, Negroni, Penicillin, Paper Plane",
+    photoHint: "Snap a drink or bottle",
   },
 };
 
 const ALL_CATEGORIES: Category[] = ["wine", "beer", "cocktails"];
+
+function ImageThumbnail({
+  image,
+  onRemove,
+}: {
+  image: DrinkImage;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-zinc-700 flex-shrink-0">
+      <img
+        src={image.thumbnail}
+        alt="Uploaded drink"
+        className="w-full h-full object-cover"
+      />
+      <button
+        onClick={onRemove}
+        className="absolute -top-1 -right-1 w-5 h-5 bg-zinc-900 border border-zinc-700 rounded-full flex items-center justify-center text-zinc-400 hover:text-rose-400 text-xs"
+      >
+        ×
+      </button>
+    </div>
+  );
+}
 
 export default function OnboardingFlow() {
   const router = useRouter();
@@ -49,11 +92,19 @@ export default function OnboardingFlow() {
     "categories"
   );
   const [inputs, setInputs] = useState<Record<Category, CategoryInput>>({
-    wine: { enabled: false, description: "", anchors: "" },
-    beer: { enabled: false, description: "", anchors: "" },
-    cocktails: { enabled: false, description: "", anchors: "" },
+    wine: { enabled: false, description: "", anchors: "", images: [] },
+    beer: { enabled: false, description: "", anchors: "", images: [] },
+    cocktails: { enabled: false, description: "", anchors: "", images: [] },
   });
   const [error, setError] = useState<string | null>(null);
+  const [loadingMessage, setLoadingMessage] = useState(
+    "Building your taste profile..."
+  );
+  const fileInputRefs = useRef<Record<Category, HTMLInputElement | null>>({
+    wine: null,
+    beer: null,
+    cocktails: null,
+  });
 
   const enabledCategories = ALL_CATEGORIES.filter((c) => inputs[c].enabled);
 
@@ -64,16 +115,69 @@ export default function OnboardingFlow() {
     }));
   }
 
-  function updateInput(cat: Category, field: "description" | "anchors", value: string) {
+  function updateInput(
+    cat: Category,
+    field: "description" | "anchors",
+    value: string
+  ) {
     setInputs((prev) => ({
       ...prev,
       [cat]: { ...prev[cat], [field]: value },
     }));
   }
 
+  const handleImageUpload = useCallback(
+    (cat: Category, e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files) return;
+
+      Array.from(files).forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result !== "string") return;
+          const dataUrl = reader.result;
+          const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+
+          setInputs((prev) => ({
+            ...prev,
+            [cat]: {
+              ...prev[cat],
+              images: [
+                ...prev[cat].images,
+                { id, dataUrl, thumbnail: dataUrl },
+              ],
+            },
+          }));
+        };
+        reader.readAsDataURL(file);
+      });
+
+      // Reset the input so the same file can be re-selected
+      e.target.value = "";
+    },
+    []
+  );
+
+  function removeImage(cat: Category, imageId: string) {
+    setInputs((prev) => ({
+      ...prev,
+      [cat]: {
+        ...prev[cat],
+        images: prev[cat].images.filter((img) => img.id !== imageId),
+      },
+    }));
+  }
+
   const canProceedToDetails = enabledCategories.length > 0;
   const canSubmit = enabledCategories.every(
-    (c) => inputs[c].description.trim().length > 0
+    (c) =>
+      inputs[c].description.trim().length > 0 ||
+      inputs[c].images.length > 0
+  );
+
+  const totalImages = enabledCategories.reduce(
+    (sum, c) => sum + inputs[c].images.length,
+    0
   );
 
   async function handleSubmit() {
@@ -82,6 +186,11 @@ export default function OnboardingFlow() {
     setError(null);
 
     try {
+      // If there are images, update loading message
+      if (totalImages > 0) {
+        setLoadingMessage("Analyzing your drink photos...");
+      }
+
       // Build combined description for API
       const descriptions = enabledCategories.map(
         (c) => `${CATEGORY_CONFIG[c].label}: ${inputs[c].description}`
@@ -93,12 +202,21 @@ export default function OnboardingFlow() {
           .filter(Boolean)
       );
 
+      // Collect all images with their category context
+      const allImages = enabledCategories.flatMap((c) =>
+        inputs[c].images.map((img) => ({
+          category: c,
+          dataUrl: img.dataUrl,
+        }))
+      );
+
       const res = await fetch("/api/analyze-profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           description: descriptions.join("\n\n"),
           anchors: allAnchors,
+          images: allImages,
         }),
       });
 
@@ -107,21 +225,39 @@ export default function OnboardingFlow() {
 
       const categories: TasteProfile["categories"] = {};
       for (const cat of enabledCategories) {
+        // Merge text anchors with any AI-identified drinks from photos
+        const textAnchors = inputs[cat].anchors
+          .split(/[,\n]/)
+          .map((a) => a.trim())
+          .filter(Boolean);
+
+        const photoAnchors = data.identifiedDrinks?.[cat] || [];
+
         categories[cat] = {
           description: inputs[cat].description,
-          anchors: inputs[cat].anchors
-            .split(/[,\n]/)
-            .map((a) => a.trim())
-            .filter(Boolean),
+          anchors: [...textAnchors, ...photoAnchors],
         };
       }
 
       const profile: TasteProfile = {
         categories,
         extractedPreferences: {
-          wine: data.extractedPreferences.wine || { styles: [], grapes: [], regions: [], attributes: [] },
-          beer: data.extractedPreferences.beer || { styles: [], breweries: [], attributes: [] },
-          cocktails: data.extractedPreferences.cocktails || { styles: [], spirits: [], attributes: [] },
+          wine: data.extractedPreferences.wine || {
+            styles: [],
+            grapes: [],
+            regions: [],
+            attributes: [],
+          },
+          beer: data.extractedPreferences.beer || {
+            styles: [],
+            breweries: [],
+            attributes: [],
+          },
+          cocktails: data.extractedPreferences.cocktails || {
+            styles: [],
+            spirits: [],
+            attributes: [],
+          },
         },
       };
 
@@ -138,7 +274,7 @@ export default function OnboardingFlow() {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20">
         <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-zinc-400 text-sm">Building your taste profile...</p>
+        <p className="text-zinc-400 text-sm">{loadingMessage}</p>
       </div>
     );
   }
@@ -214,7 +350,9 @@ export default function OnboardingFlow() {
                 key={cat}
                 className="space-y-3 p-4 rounded-xl border border-zinc-800 bg-zinc-900/30"
               >
-                <h3 className={`font-medium flex items-center gap-2 ${config.color.split(" ")[0]}`}>
+                <h3
+                  className={`font-medium flex items-center gap-2 ${config.color.split(" ")[0]}`}
+                >
                   <span>{config.icon}</span>
                   {config.label}
                 </h3>
@@ -244,6 +382,59 @@ export default function OnboardingFlow() {
                     }
                     placeholder={config.anchorsPlaceholder}
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white placeholder:text-zinc-700 focus:border-violet-500 focus:outline-none text-sm"
+                  />
+                </div>
+
+                {/* Photo upload section */}
+                <div className="space-y-2">
+                  <label className="text-xs text-zinc-500">
+                    Upload photos of drinks you like (optional)
+                  </label>
+
+                  {/* Image thumbnails */}
+                  {inputs[cat].images.length > 0 && (
+                    <div className="flex gap-2 flex-wrap">
+                      {inputs[cat].images.map((img) => (
+                        <ImageThumbnail
+                          key={img.id}
+                          image={img}
+                          onRemove={() => removeImage(cat, img.id)}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => fileInputRefs.current[cat]?.click()}
+                    className="flex items-center gap-2 px-3 py-2 bg-zinc-950 border border-dashed border-zinc-700 hover:border-zinc-500 rounded-lg text-zinc-500 hover:text-zinc-300 text-sm transition-colors w-full justify-center"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={1.5}
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z"
+                      />
+                    </svg>
+                    {config.photoHint}
+                  </button>
+                  <input
+                    ref={(el) => { fileInputRefs.current[cat] = el; }}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => handleImageUpload(cat, e)}
+                    className="hidden"
                   />
                 </div>
               </div>
