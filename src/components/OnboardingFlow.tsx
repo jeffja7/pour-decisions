@@ -114,16 +114,43 @@ function ImageThumbnail({
   );
 }
 
-export default function OnboardingFlow() {
-  const router = useRouter();
-  const [step, setStep] = useState<"categories" | "details" | "loading">(
-    "categories"
-  );
-  const [inputs, setInputs] = useState<Record<Category, CategoryInput>>({
+interface OnboardingFlowProps {
+  existingProfile?: TasteProfile | null;
+}
+
+function buildInitialInputs(profile?: TasteProfile | null): Record<Category, CategoryInput> {
+  const defaults: Record<Category, CategoryInput> = {
     wine: { enabled: false, description: "", anchors: "", images: [] },
     beer: { enabled: false, description: "", anchors: "", images: [] },
     cocktails: { enabled: false, description: "", anchors: "", images: [] },
-  });
+  };
+
+  if (!profile) return defaults;
+
+  for (const cat of ALL_CATEGORIES) {
+    const catData = profile.categories[cat];
+    if (catData) {
+      defaults[cat] = {
+        enabled: true,
+        description: catData.description,
+        anchors: catData.anchors.join(", "),
+        images: [],
+      };
+    }
+  }
+
+  return defaults;
+}
+
+export default function OnboardingFlow({ existingProfile }: OnboardingFlowProps) {
+  const router = useRouter();
+  const isEditing = !!existingProfile;
+  const [step, setStep] = useState<"categories" | "details" | "loading">(
+    isEditing ? "details" : "categories"
+  );
+  const [inputs, setInputs] = useState<Record<Category, CategoryInput>>(
+    () => buildInitialInputs(existingProfile)
+  );
   const [error, setError] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState(
     "Building your taste profile..."
@@ -324,7 +351,9 @@ export default function OnboardingFlow() {
     <div className="w-full max-w-lg mx-auto px-4 py-8 space-y-8">
       <div className="text-center space-y-2">
         <h1 className="text-3xl font-bold text-white">PourDecision</h1>
-        <p className="text-zinc-400">Your AI sommelier & beer advisor</p>
+        <p className="text-zinc-400">
+          {isEditing ? "Update your taste profile" : "Your AI sommelier & beer advisor"}
+        </p>
       </div>
 
       {step === "categories" && (
@@ -498,7 +527,7 @@ export default function OnboardingFlow() {
               disabled={!canSubmit}
               className="flex-1 py-3 bg-violet-600 hover:bg-violet-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-semibold rounded-xl transition-colors"
             >
-              Build My Profile
+              {isEditing ? "Update Profile" : "Build My Profile"}
             </button>
           </div>
         </div>
