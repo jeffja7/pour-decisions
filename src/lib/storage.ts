@@ -54,6 +54,52 @@ export function getRecentFeedback(limit = 20): FeedbackEntry[] {
   return history.flatMap((s) => s.feedback).slice(0, limit);
 }
 
+export interface RatedItem {
+  item: string;
+  rating: "up" | "down";
+  timestamp: number;
+  reason?: string;
+  scanId: string;
+}
+
+/**
+ * Returns a flat list of every item the user has rated (up or down) across
+ * all scans, joined with the original recommendation reason. Sorted by most
+ * recent first.
+ */
+export function getRatedItems(): RatedItem[] {
+  const history = getHistory();
+  const rated: RatedItem[] = [];
+
+  for (const scan of history) {
+    // Build a lookup of item name -> reason from the scan's recommendations
+    const reasonMap = new Map<string, string>();
+    for (const pick of scan.recommendations.topPicks) {
+      reasonMap.set(pick.item, pick.reason);
+    }
+    if (scan.recommendations.adventurePick) {
+      reasonMap.set(
+        scan.recommendations.adventurePick.item,
+        scan.recommendations.adventurePick.reason
+      );
+    }
+
+    for (const fb of scan.feedback) {
+      if (fb.rating === "up" || fb.rating === "down") {
+        rated.push({
+          item: fb.item,
+          rating: fb.rating,
+          timestamp: fb.timestamp,
+          reason: reasonMap.get(fb.item),
+          scanId: scan.id,
+        });
+      }
+    }
+  }
+
+  return rated.sort((a, b) => b.timestamp - a.timestamp);
+}
+
 export function clearAllData(): void {
   localStorage.removeItem(PROFILE_KEY);
   localStorage.removeItem(HISTORY_KEY);

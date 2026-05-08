@@ -29,6 +29,25 @@ const tabs = [
     ),
   },
   {
+    href: "/history",
+    label: "Tasting Log",
+    icon: (active: boolean) => (
+      <svg
+        className={`w-6 h-6 ${active ? "text-violet-500" : "text-zinc-500"}`}
+        fill="none"
+        viewBox="0 0 24 24"
+        strokeWidth={1.5}
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0 1 12 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m0 0h-7.5"
+        />
+      </svg>
+    ),
+  },
+  {
     href: "/palate",
     label: "My Palate",
     icon: (active: boolean) => (
@@ -61,7 +80,7 @@ export default function BottomNav() {
             <Link
               key={tab.href}
               href={tab.href}
-              className="flex flex-col items-center gap-1 px-8 py-3 relative active:scale-95 transition-transform"
+              className="flex flex-col items-center gap-1 px-4 py-3 relative active:scale-95 transition-transform"
             >
               {active && (
                 <span className="absolute top-0 w-6 h-0.5 rounded-full bg-violet-500" />
